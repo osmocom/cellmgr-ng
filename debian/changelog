@@ -1,3 +1,11 @@
+cellmgr-ng (1.4.7) unstable; urgency=medium
+
+  * misc: Fix compiler warnings for amd64
+  * debian: Provide systemd.service file
+  * vty: Fix writing configuration and enable config tests
+
+ -- Holger Hans Peter Freyther <holger@moiji-mobile.com>  Mon, 15 Aug 2016 13:55:26 +0200
+
 cellmgr-ng (1.4.6) unstable; urgency=medium
 
   * m3ua: Start timer to wait for ASPAC_ACK
