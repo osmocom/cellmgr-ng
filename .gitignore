@@ -15,6 +15,7 @@ depcomp
 install-sh
 missing
 stamp-h1
+compile
 
 # compiled stuff
 *.o
@@ -31,12 +32,13 @@ mgcp_mgw
 patching_test
 mtp_parse_test
 udt_relay
-osmo_stp
+osmo-stp
 
 .version
 aclocal.m4
 autom4te.cache/
 configure.lineno
+writtenconfig
 tests/atconfig
 tests/dtmf/dtmf_test
 tests/isup/isup_parse_test
