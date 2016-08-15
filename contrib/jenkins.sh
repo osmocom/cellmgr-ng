@@ -9,7 +9,7 @@ osmo-deps.sh libosmocore
 
 cd libosmocore
 autoreconf --install --force
-./configure --prefix=$PWD/../install
+./configure --prefix=$PWD/../install ac_cv_path_DOXYGEN=false
 $MAKE $PARALLEL_MAKE install
 
 cd ../
