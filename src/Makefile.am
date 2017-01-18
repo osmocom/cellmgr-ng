@@ -17,8 +17,8 @@ cellmgr_ng_SOURCES = main.c mtp_layer3.c thread.c input/ipaccess.c pcap.c \
 		     mtp_link.c counter.c sccp_state.c bsc.c ss7_application.c \
 		     vty_interface_legacy.c vty_interface_cmds.c mgcp_patch.c \
 		     mgcp_callagent.c  isup_filter.c
-cellmgr_ng_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOGSM_LIBS) $(LIBOSMOVTY_LIBS) \
-		   $(LIBOSMOSCCP_LIBS) $(NEXUSWARE_C7_LIBS) \
+cellmgr_ng_LDADD = $(LIBOSMOSCCP_LIBS) $(LIBOSMOGSM_LIBS) $(LIBOSMOVTY_LIBS) \
+		   $(LIBOSMOCORE_LIBS) $(NEXUSWARE_C7_LIBS) \
 		   -lpthread -lnetsnmp -lcrypto
 
 osmo_stp_SOURCES = main_stp.c mtp_layer3.c thread.c pcap.c link_udp.c snmp_mtp.c \
@@ -28,6 +28,6 @@ osmo_stp_SOURCES = main_stp.c mtp_layer3.c thread.c pcap.c link_udp.c snmp_mtp.c
 		   vty_interface.c vty_interface_cmds.c mgcp_patch.c \
 		   mgcp_callagent.c isup_filter.c sctp_m3ua_client.c \
 		   sctp_m3ua_misc.c
-osmo_stp_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOGSM_LIBS) $(LIBOSMOVTY_LIBS) \
-		 $(LIBOSMOSCCP_LIBS) $(NEXUSWARE_C7_LIBS) \
+osmo_stp_LDADD = $(LIBOSMOSCCP_LIBS) $(LIBOSMOGSM_LIBS) $(LIBOSMOVTY_LIBS) \
+		 $(LIBOSMOCORE_LIBS) $(NEXUSWARE_C7_LIBS) \
 		   -lpthread -lnetsnmp -lcrypto -lxua -lsctp
