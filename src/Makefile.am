@@ -8,7 +8,7 @@ sbin_PROGRAMS = cellmgr_ng osmo-stp mgcp_mgw
 mgcp_mgw_SOURCES = mgcp_ss7.c mgcp_ss7_vty.c mgcp_hw.c thread.c debug.c \
 		   mgcp/mgcp_protocol.c mgcp/mgcp_network.c mgcp/mgcp_vty.c \
 		   dtmf_scheduler.c
-mgcp_mgw_LDADD = $(LAFORGE_LIBS) $(NEXUSWARE_C7_LIBS) $(NEXUSWARE_UNIPORTE_LIBS) \
+mgcp_mgw_LDADD = $(NEXUSWARE_C7_LIBS) $(NEXUSWARE_UNIPORTE_LIBS) \
 		 $(LIBOSMOVTY_LIBS) $(LIBOSMOCORE_LIBS) -lpthread -lcrypto -lrt
 
 cellmgr_ng_SOURCES = main.c mtp_layer3.c thread.c input/ipaccess.c pcap.c \
