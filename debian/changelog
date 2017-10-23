@@ -1,3 +1,9 @@
+cellmgr-ng (1.4.8) unstable; urgency=medium
+
+  * m3ua: Make connection non-blocking
+
+ -- Holger Hans Peter Freyther <holger@moiji-mobile.com>  Mon, 23 Oct 2017 14:15:23 +0800
+
 cellmgr-ng (1.4.7) unstable; urgency=medium
 
   * misc: Fix compiler warnings for amd64
