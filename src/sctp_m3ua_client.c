@@ -1,5 +1,5 @@
 /* Run M3UA over SCTP here */
-/* (C) 2015 by Holger Hans Peter Freyther
+/* (C) 2015-2017 by Holger Hans Peter Freyther
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -31,6 +31,8 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdbool.h>
 
 #define SCTP_PPID_M3UA 3
 
@@ -47,6 +49,27 @@ static void m3ua_handle_trans(struct mtp_m3ua_client_link *link, struct xua_msg 
 static void m3ua_send_daud(struct mtp_m3ua_client_link *link, uint32_t pc);
 static void m3ua_send_aspup(struct mtp_m3ua_client_link *link);
 static void m3ua_send_aspac(struct mtp_m3ua_client_link *link);
+
+// TODO: Share with msc_conn.c:setnonblocking
+static int setnonblocking_fd(int fd)
+{
+	int flags;
+
+	flags = fcntl(fd, F_GETFL);
+	if (flags < 0) {
+		perror("fcntl get failed");
+		return -1;
+	}
+
+	flags |= O_NONBLOCK;
+	flags = fcntl(fd, F_SETFL, flags);
+	if (flags < 0) {
+		perror("fcntl get failed");
+		return -1;
+	}
+
+	return 0;
+}
 
 /*
  * boilerplate
@@ -190,16 +213,66 @@ static int m3ua_conn_read(struct osmo_fd *fd)
 	return 0;
 }
 
+static void m3ua_connected(struct mtp_m3ua_client_link *link)
+{
+	link->aspac_ack_timer.data = link;
+	link->aspac_ack_timer.cb = aspac_ack_timeout;
+	osmo_timer_schedule(&link->aspac_ack_timer, link->aspac_ack_timeout, 0);
+	m3ua_send_aspup(link);
+}
+
+static int sctp_m3ua_connected(struct osmo_fd *fd, unsigned int what)
+{
+	struct mtp_m3ua_client_link *link = fd->data;
+	int val, rc;
+	socklen_t len = sizeof(val);
+
+	if ((what & BSC_FD_WRITE) == 0)
+		return -1;
+
+	/* check the socket state */
+	rc = getsockopt(fd->fd, SOL_SOCKET, SO_ERROR, &val, &len);
+	if (rc != 0) {
+		LOGP(DINP, LOGL_ERROR, "getsockopt for the SCTP socket failed.\n");
+		goto error;
+	}
+	if (val != 0) {
+		LOGP(DINP, LOGL_ERROR, "Not connected to the STP.\n");
+		goto error;
+	}
+
+	/* go to full operation */
+	fd->cb = osmo_wqueue_bfd_cb;
+	fd->when = BSC_FD_READ;
+	if (!llist_empty(&link->queue.msg_queue))
+		fd->when |= BSC_FD_WRITE;
+
+	LOGP(DINP, LOGL_NOTICE, "SCTP M3UA is now connected.\n");
+	m3ua_connected(link);
+	return 0;
+
+error:
+	fail_link(link);
+	return -1;
+}
+
 static void m3ua_start(void *data)
 {
 	int sctp, ret;
 	struct sockaddr_in loc_addr, rem_addr;
 	struct mtp_m3ua_client_link *link = data;
 	struct sctp_event_subscribe events;
+	bool is_connected = false;
 
 	sctp = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
 	if (!sctp) {
 		LOGP(DINP, LOGL_ERROR, "Failed to create socket.\n");
+		return fail_link(link);
+	}
+
+	if (setnonblocking_fd(sctp) != 0)  {
+		LOGP(DINP, LOGL_ERROR, "Failed to set nonblocking\n");
+		close(sctp);
 		return fail_link(link);
 	}
 
@@ -222,17 +295,27 @@ static void m3ua_start(void *data)
 
 	rem_addr = link->remote;
 	rem_addr.sin_family = AF_INET;
-	if (connect(sctp, (struct sockaddr *) &rem_addr, sizeof(rem_addr)) != 0) {
+	ret = connect(sctp, (struct sockaddr *) &rem_addr, sizeof(rem_addr));
+
+	/* common code */
+	link->queue.bfd.fd = sctp;
+	link->queue.bfd.data = link;
+	link->queue.read_cb = m3ua_conn_read;
+	link->queue.write_cb = m3ua_conn_write;
+
+	if (ret == -1 && errno == EINPROGRESS) {
+		LOGP(DINP, LOGL_NOTICE, "SCTP M3UA async connect in progrss.\n");
+		link->queue.bfd.when = BSC_FD_WRITE;
+		link->queue.bfd.cb = sctp_m3ua_connected;
+	} else if (ret != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to connect\n");
 		close(sctp);
 		return fail_link(link);
+	} else {
+		link->queue.bfd.when = BSC_FD_READ;
+		link->queue.bfd.cb = osmo_wqueue_bfd_cb;
+		is_connected = true;
 	}
-
-	link->queue.bfd.fd = sctp;
-	link->queue.bfd.data = link;
-	link->queue.bfd.when = BSC_FD_READ;
-	link->queue.read_cb = m3ua_conn_read;
-	link->queue.write_cb = m3ua_conn_write;
 
 	if (osmo_fd_register(&link->queue.bfd) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register fd\n");
@@ -241,10 +324,8 @@ static void m3ua_start(void *data)
 	}
 
 	/* begin the messages for bring-up */
-	link->aspac_ack_timer.data = link;
-	link->aspac_ack_timer.cb = aspac_ack_timeout;
-	osmo_timer_schedule(&link->aspac_ack_timer, link->aspac_ack_timeout, 0);
-	m3ua_send_aspup(link);
+	if (is_connected)
+		return m3ua_connected(link);
 }
 
 static int m3ua_write(struct mtp_link *mtp_link, struct msgb *msg)
