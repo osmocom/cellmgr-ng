@@ -77,31 +77,6 @@ static int ss7_go_parent(struct vty *vty)
 	return vty->node;
 }
 
-
-DEFUN(node_exit, node_exit_cmd,
-      "exit", "Exit the current node\n")
-{
-	ss7_go_parent(vty);
-	return CMD_SUCCESS;
-}
-
-DEFUN(node_end, node_end_cmd,
-      "end", "End the current mode and change to the enable node\n")
-{
-	switch (vty->node) {
-	case VIEW_NODE:
-	case ENABLE_NODE:
-		break;
-	default:
-		vty_config_unlock(vty);
-		vty->node = ENABLE_NODE;
-		vty->index = NULL;
-		vty->index_sub = NULL;
-		break;
-	}
-	return CMD_SUCCESS;
-}
-
 static struct vty_app_info vty_info = {
 	.name 		= "OsmoSTP",
 	.version	= VERSION,
@@ -1316,9 +1291,6 @@ DEFUN(cfg_app_no_hardcode_ass, cfg_app_no_hardcode_ass_cmd,
 
 static void install_defaults(int node)
 {
-	install_default(node);
-	install_element(node, &node_exit_cmd);
-	install_element(node, &node_end_cmd);
 	install_element(node, &cfg_description_cmd);
 	install_element(node, &cfg_no_description_cmd);
 }
