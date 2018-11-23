@@ -1,41 +1,50 @@
 #!/usr/bin/env bash
+# jenkins build helper script for openbsc.  This is how we build on jenkins.osmocom.org
+
+if ! [ -x "$(command -v osmo-build-dep.sh)" ]; then
+	echo "Error: We need to have scripts/osmo-deps.sh from http://git.osmocom.org/osmo-ci/ in PATH !"
+	exit 2
+fi
 
 set -ex
 
-rm -rf deps/install
-mkdir deps || true
-cd deps
-osmo-deps.sh libosmocore
+base="$PWD"
+deps="$base/deps"
+inst="$deps/install"
+export deps inst
 
-cd libosmocore
+osmo-clean-workspace.sh
+
+mkdir "$deps" || true
+
+osmo-build-dep.sh libosmocore "" "--disable-doxygen"
+
+verify_value_string_arrays_are_terminated.py $(find . -name "*.[hc]")
+
+export PKG_CONFIG_PATH="$inst/lib/pkgconfig:$PKG_CONFIG_PATH"
+export LD_LIBRARY_PATH="$inst/lib"
+
+osmo-build-dep.sh libosmo-abis
+osmo-build-dep.sh libosmo-netif
+osmo-build-dep.sh libosmo-sccp old_sua
+
+set +x
+echo
+echo
+echo
+echo " =============================== cellmgr-ng ==============================="
+echo
+set -x
+
+cd "$base"
 autoreconf --install --force
-./configure --prefix=$PWD/../install ac_cv_path_DOXYGEN=false
-$MAKE $PARALLEL_MAKE install
+./configure --enable-external-tests
+$MAKE $PARALLEL_MAKE
+LD_LIBRARY_PATH="$inst/lib" $MAKE check \
+  || cat-testlogs.sh
+LD_LIBRARY_PATH="$inst/lib" \
+  DISTCHECK_CONFIGURE_FLAGS="--enable-external-tests" \
+  $MAKE distcheck \
+  || cat-testlogs.sh
 
-cd ../
-osmo-deps.sh libosmo-abis
-cd libosmo-abis
-autoreconf --install --force
-PKG_CONFIG_PATH=$PWD/../install/lib/pkgconfig:$PKG_CONFIG_PATH ./configure --prefix=$PWD/../install  
-PKG_CONFIG_PATH=$PWD/..//install/lib/pkgconfig:$PKG_CONFIG_PATH $MAKE $PARALLEL_MAKE install
-
-cd ../
-osmo-deps.sh libosmo-netif
-cd libosmo-netif
-autoreconf --install --force
-PKG_CONFIG_PATH=$PWD/../install/lib/pkgconfig:$PKG_CONFIG_PATH ./configure --prefix=$PWD/../install  
-PKG_CONFIG_PATH=$PWD/..//install/lib/pkgconfig:$PKG_CONFIG_PATH $MAKE $PARALLEL_MAKE install
-
-
-cd ../
-osmo-deps.sh libosmo-sccp
-cd libosmo-sccp
-autoreconf --install --force
-PKG_CONFIG_PATH=$PWD/../install/lib/pkgconfig ./configure --prefix=$PWD/../install  
-PKG_CONFIG_PATH=$PWD/..//install/lib/pkgconfig $MAKE $PARALLEL_MAKE install
-
-cd ../../
-autoreconf --install --force
-PKG_CONFIG_PATH=$PWD/deps/install/lib/pkgconfig ./configure --enable-external-tests
-PKG_CONFIG_PATH=$PWD/deps/install/lib/pkgconfig $MAKE $PARALLEL_MAKE
-PKG_CONFIG_PATH=$PWD/deps/install/lib/pkgconfig LD_LIBRARY_PATH=$PWD/deps/install/lib $MAKE distcheck
+osmo-clean-workspace.sh
