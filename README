@@ -1,3 +1,9 @@
+== DEPRECATION NOTE ==
+
+cellmgr-ng is out of maintenance for a long time now (13 months) and some
+of its features are going to be served by osmo-stp in the future.
+cellmgr-ng is unable to build against recent libosmo-sccp.
+
 == Building the cellmgr_ng ==
 
 === Requirements ===
@@ -72,4 +78,3 @@ issues...
 === POI ===
 We do not want to have the point code indicator in the SCCP header. Currently
 we are removing this from the CR and DT1 messages.
-
